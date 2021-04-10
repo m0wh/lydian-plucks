@@ -13,8 +13,8 @@ const CustomStyle = ({
   width,
   height,
   handleResize,
-  distorsion = 0.1,
-  distorsion_wet = 0.1,
+  // distorsion = 0.1,
+  // distorsion_wet = 0.1,
   reverb_wet = 0.1,
   reverb_decay = 0.1,
   color_env = '#ffffff',
@@ -35,7 +35,7 @@ const CustomStyle = ({
   }
 
   state.DEFAULT_SIZE = DEFAULT_SIZE
-  b({ width, height, distorsion, reverb_wet, reverb_decay, distorsion_wet })
+  b({ width, height, /* distorsion, distorsion_wet,*/ reverb_wet, reverb_decay })
 
   const setup = (p5, canvasParentRef) => {
     const _p5 = p5.createCanvas(width, height).parent(canvasParentRef)
@@ -77,8 +77,8 @@ const styleMetadata = {
   image: '',
   creator_name: 'Nèr Arfer',
   options: {
-    distorsion: 0.1,
-    distorsion_wet: 0.1,
+    // distorsion: 0.1,
+    // distorsion_wet: 0.1,
     reverb_wet: 0.1,
     reverb_decay: 0.1,
     color_env: '#ffffff',

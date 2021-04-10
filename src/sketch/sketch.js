@@ -3,16 +3,19 @@ import state from './state'
 
 state.playing = true
 
-export function b ({ width, height, distorsion, distorsion_wet, reverb_wet, reverb_decay }) {
+export function b ({ width, height, /* distorsion, distorsion_wet,*/ reverb_wet, reverb_decay }) {
   state.width = width
   state.height = height
   state.depth = Math.max(width, height)
   state.perspective = 1 / (0.001 * state.depth + 1)
   const reverb = new Tone.Reverb()
-  const dist = new Tone.Distortion(distorsion)
-  dist.set({ wet: distorsion_wet })
+  const dist = new Tone.Distortion(0.1)
+  const st = new Tone.StereoWidener(0.6)
+  const comp = new Tone.Compressor(-30, 10);
+  const limiter = new Tone.Limiter(-5)
+  dist.set({ wet: 0.1 })
   reverb.set({ decay: reverb_decay * 10, wet: reverb_wet })
-  state.synth = new Tone.PolySynth().chain(reverb, dist, Tone.Destination)
+  state.synth = new Tone.PolySynth().chain(reverb, dist, st, comp, limiter, Tone.Destination)
   state.synth.set({
     oscillator: { type: 'sine' },
     envelope: {
