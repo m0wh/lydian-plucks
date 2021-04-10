@@ -5,6 +5,8 @@ const state = {
   ponks: undefined,
   ponksHistory: undefined,
   scale: undefined,
+  width: undefined,
+  height: undefined,
   depth: undefined,
   perspective: undefined,
   rad: undefined

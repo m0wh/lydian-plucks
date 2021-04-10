@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import Sketch from 'react-p5'
-// import MersenneTwister from 'mersenne-twister'
+import MersenneTwister from 'mersenne-twister'
 import { b, s, d } from './sketch/sketch'
 import state from './sketch/state'
 
@@ -13,26 +13,36 @@ const CustomStyle = ({
   width,
   height,
   handleResize,
-  mod1 = 0.75,
-  mod2 = 0.5,
-  mod3 = 0.25,
-  mod4 = 0.1,
-  color1 = '#4f83f1',
-  color2 = '#4f00f1',
-  background = '#ccc',
+  distorsion = 0.1,
+  distorsion_wet = 0.1,
+  reverb_wet = 0.1,
+  reverb_decay = 0.1,
+  color_env = '#ffffff',
+  color_plucks = '#ffffff',
+  background = '#000000',
 }) => {
-  // const shuffleBag = useRef()
+  const shuffleBag = useRef()
   const hoistedValue = useRef()
 
+  let seed = parseInt(block.hash.slice(0, 16), 16);
+  shuffleBag.current = new MersenneTwister(seed);
+  state.random = (min, max) => {
+    console.log()
+    if ((typeof min === 'number') && (typeof max === 'number')) return shuffleBag.current.random() * (max - min) + min
+    if ((typeof min === 'number') && !(typeof max === 'number')) return shuffleBag.current.random() * min
+    if (min instanceof Array) return min[Math.round(shuffleBag.current.random() * (min.length - 1))]
+    return shuffleBag.current.random()
+  }
+
   state.DEFAULT_SIZE = DEFAULT_SIZE
-  b({ width, height })
+  b({ width, height, distorsion, reverb_wet, reverb_decay, distorsion_wet })
 
   const setup = (p5, canvasParentRef) => {
     const _p5 = p5.createCanvas(width, height).parent(canvasParentRef)
     canvasRef.current = p5
     if (_p5) { }
 
-    s(p5, { hash: block.hash })
+    s(p5, { color_env, color_plucks, background })
 
     attributesRef.current = () => {
       return { // https://docs.opensea.io/docs/metadata-standards
@@ -53,7 +63,7 @@ const CustomStyle = ({
   }
 
   const draw = (p5) => {
-    d(p5, {})
+    d(p5, { color_env, color_plucks, background })
   }
 
   return <Sketch setup={setup} draw={draw} windowResized={handleResize} />
@@ -67,13 +77,13 @@ const styleMetadata = {
   image: '',
   creator_name: 'Nèr Arfer',
   options: {
-    mod1: 0.4,
-    mod2: 0.1,
-    mod3: 0.2,
-    mod4: 0.2,
-    color1: '#FF0022',
-    color2: '#FFF000',
-    background: '#111122'
+    distorsion: 0.1,
+    distorsion_wet: 0.1,
+    reverb_wet: 0.1,
+    reverb_decay: 0.1,
+    color_env: '#ffffff',
+    color_plucks: '#ffffff',
+    background: '#000000'
   }
 }
 
