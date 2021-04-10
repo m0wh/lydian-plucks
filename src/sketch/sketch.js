@@ -8,6 +8,7 @@ export function b ({ width, height, /* distorsion, distorsion_wet,*/ reverb_wet,
   state.height = height
   state.depth = Math.max(width, height)
   state.perspective = 1 / (0.001 * state.depth + 1)
+  Tone.start()
   const reverb = new Tone.Reverb()
   const dist = new Tone.Distortion(0.1)
   const st = new Tone.StereoWidener(0.6)
