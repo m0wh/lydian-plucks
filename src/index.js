@@ -47,7 +47,7 @@ function App() {
             height: '60vw',
           }}
         >
-          <h3>EthBlock.art P5.js boilerplate</h3>
+          <h3>Lydian Plucks by <a href="https://nerarfer.xyz" target="_blank" rel="noreferrer">Nèr Arfer</a></h3>
           {width && height ? (
             <CustomStyle
               width={width}
