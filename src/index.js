@@ -45,6 +45,8 @@ function App() {
             marginTop: '64px',
             width: '60vw',
             height: '60vw',
+            maxWidth: '80vh',
+            maxHeight: '80vh',
           }}
         >
           <h3>Lydian Plucks by <a href="https://nerarfer.xyz" target="_blank" rel="noreferrer">Nèr Arfer</a></h3>
