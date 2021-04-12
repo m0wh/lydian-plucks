@@ -1,104 +1,116 @@
 import React, { useRef } from 'react'
 import Sketch from 'react-p5'
 import MersenneTwister from 'mersenne-twister'
-import * as Tone from 'tone'
 
-const DEFAULT_SIZE = 1000
+// import * as Tone from 'tone'
+// const reverb = new Tone.Reverb()
+//   const dist = new Tone.Distortion(0.1)
+//   const st = new Tone.StereoWidener(0.6)
+//   const comp = new Tone.Compressor(-30, 10);
+//   const limiter = new Tone.Limiter(-5)
+//   dist.set({ wet: 0.1 })
+//   reverb.set({ decay: reverb_decay * 10, wet: reverb_wet })
+//   synth = new Tone.PolySynth().chain(reverb, dist, st, comp, limiter, Tone.Destination)
+//   synth.set({
+//     oscillator: { type: 'sine' },
+//     envelope: {
+//       attack: 0,
+//       decay: random() * 10,
+//       sustain: 0,
+//       release: 1
+//     }
+//   })
+//   synth.triggerAttackRelease(this.note, '8n', undefined, (1 - this.pos.z / depth) * 0.8 + 0.2)
 
-const state = {
-  DEFAULT_SIZE: undefined,
-  playing: undefined,
-  synth: undefined,
-  ponks: undefined,
-  ponksHistory: undefined,
-  scale: undefined,
-  width: undefined,
-  height: undefined,
-  depth: undefined,
-  perspective: undefined,
-  rad: undefined
+/* === CONFIGURABLES VALUES === */
+
+const maxEllipses = 300
+const rad = 20 // radius of each ball
+const scale = [ // chords used by plucks (lydian scale)
+  ['C3', 'E3', 'G3'],
+  ['D3', 'F#3', 'A3'],
+  ['E3', 'G3', 'B3'],
+  ['F#3', 'A4', 'C3'],
+  ['G3', 'B4', 'D3'],
+  ['A4', 'C4', 'E3'],
+  ['B4', 'D4', 'F#3'],
+  ['C4', 'E4', 'G3'],
+  ['D4', 'F#4', 'A4'],
+  ['E4', 'G4', 'B4'],
+  ['F#4', 'A4', 'C4'],
+  ['G4', 'A4', 'D4'],
+  ['G4', 'A4', 'D4']
+]
+
+/* ============================ */
+
+// initial values
+let plucks
+let depth
+let perspective
+
+class Pluck {
+  constructor ({ width, height, depth }, { note, pos, speed, angle }) {
+    this.boxWidth = width
+    this.boxHeight = height
+    this.boxDepth = depth
+
+    this.speed = speed
+    this.note = note
+    this.pos = pos
+    this.vel = {
+      x: speed * Math.cos(angle[0]),
+      y: speed * Math.sin(angle[0]),
+      z: speed * Math.cos(angle[1])
+    }
+  }
+
+  getPositionAt (t) {
+    // triangle function (bounce) : f(x) = |(pos + vel * x + size * sign(speed)) % (2 * size) - size * sign(speed) |
+    const calculateWithBounces = (pos, vel, boxSize) =>
+      rad / 2 + Math.abs((pos + vel * t + Math.sign(vel) * (boxSize - rad)) % (2 * (boxSize - rad)) - Math.sign(vel) * (boxSize - rad))
+
+    return {
+      x: calculateWithBounces(this.pos.x, this.vel.x,this.boxWidth),
+      y: calculateWithBounces(this.pos.y, this.vel.y,this.boxHeight),
+      z: calculateWithBounces(this.pos.z, this.vel.z,this.boxDepth)
+    }
+  }
 }
 
 const CustomStyle = ({
-  block,
-  canvasRef,
-  attributesRef,
-  width,
-  height,
-  handleResize,
-  // distorsion = 0.1,
-  // distorsion_wet = 0.1,
-  reverb_wet = 0.1,
-  reverb_decay = 0.1,
+  canvasRef, attributesRef, handleResize,
+  block, width, height,
+
+  trail_length = 0.5,
+  lens = 0.5,
   color_env = '#ffffff',
   color_plucks = '#ffffff',
-  background = '#000000',
+  background = '#000000'
 }) => {
   const shuffleBag = useRef()
   const hoistedValue = useRef()
 
+  // seeded random function
   let seed = parseInt(block.hash.slice(0, 16), 16);
   shuffleBag.current = new MersenneTwister(seed);
-  state.random = (min, max) => {
-    console.log()
+  function random (min, max) {
     if ((typeof min === 'number') && (typeof max === 'number')) return shuffleBag.current.random() * (max - min) + min
     if ((typeof min === 'number') && !(typeof max === 'number')) return shuffleBag.current.random() * min
     if (min instanceof Array) return min[Math.round(shuffleBag.current.random() * (min.length - 1))]
     return shuffleBag.current.random()
   }
 
-  state.DEFAULT_SIZE = DEFAULT_SIZE
+  depth = Math.max(width, height)
+  perspective = 1 / (0.005 * lens * lens * depth + 1)
 
-  state.playing = true
-  state.width = width
-  state.height = height
-  state.depth = Math.max(width, height)
-  state.perspective = 1 / (0.001 * state.depth + 1)
-  Tone.start()
-  const reverb = new Tone.Reverb()
-  const dist = new Tone.Distortion(0.1)
-  const st = new Tone.StereoWidener(0.6)
-  const comp = new Tone.Compressor(-30, 10);
-  const limiter = new Tone.Limiter(-5)
-  dist.set({ wet: 0.1 })
-  reverb.set({ decay: reverb_decay * 10, wet: reverb_wet })
-  state.synth = new Tone.PolySynth().chain(reverb, dist, st, comp, limiter, Tone.Destination)
-  state.synth.set({
-    oscillator: { type: 'sine' },
-    envelope: {
-      attack: 0,
-      decay: state.random() * 10,
-      sustain: 0,
-      release: 1
-    }
-  })
-
-  state.ponks = []
-  state.ponksHistory = []
-  state.rad = 20
-  state.scale = [
-    ['C3', 'E3', 'G3'],
-    ['D3', 'F#3', 'A3'],
-    ['E3', 'G3', 'B3'],
-    ['F#3', 'A4', 'C3'],
-    ['G3', 'B4', 'D3'],
-    ['A4', 'C4', 'E3'],
-    ['B4', 'D4', 'F#3'],
-    ['C4', 'E4', 'G3'],
-    ['D4', 'F#4', 'A4'],
-    ['E4', 'G4', 'B4'],
-    ['F#4', 'A4', 'C4'],
-    ['G4', 'A4', 'D4'],
-    ['G4', 'A4', 'D4']
-  ] // lydian scale
-
-  for (let i = 0; i < state.random(2, 8); i++) {
-    state.ponks.push(new Ponk({
-      note: state.random(state.scale),
-      color: '#ffffff',
-      pos: { x: state.random(state.rad, state.width - state.rad), y: state.random(state.rad, state.height - state.rad), z: state.random(state.rad, state.depth - state.rad) },
-      speed: state.random() * 2,
-      angle: [state.random(0, Math.PI * 2), state.random(0, Math.PI * 2)]
+  plucks = []
+  for (let i = 0; i < random(2, 8); i++) {
+    plucks.push(new Pluck({ width, height, depth }, {
+      note: random(scale),
+      pos: { x: random(rad, width - rad), y: random(rad, height - rad), z: random(rad, depth - rad) },
+      speed: random(.2, .8), // px / ms
+      angle: [random(0, Math.PI * 2), random(0, Math.PI * 2)]
     }))
   }
 
@@ -128,95 +140,48 @@ const CustomStyle = ({
   }
 
   const draw = (p5) => {
-    state.depth = Math.max(p5.width, p5.height) 
-    state.perspective = 1 / (0.001 * state.depth + 1)
-  
+    const time = p5.millis()
+    
+    // draw environment
     p5.background(background)
     p5.fill(background)
     p5.stroke(color_env)
-  
     p5.line(0, 0, p5.width, p5.height)
     p5.line(0, p5.height, p5.width, 0)
-    p5.rect(p5.width * (1 - state.perspective) / 2, p5.height * (1 - state.perspective) / 2, p5.width * state.perspective, p5.height * state.perspective)
+    p5.rect(p5.width * (1 - perspective) / 2, p5.height * (1 - perspective) / 2, p5.width * perspective, p5.height * perspective)
+
+    // draw plucks and their trails
+    plucks.map(pluck => {
+      const pluckAndTrail = []
+      for (let i = 0; i < Math.round(maxEllipses / plucks.length); i++) {
+        if (time - (i * trail_length) >= 0) {
+          pluckAndTrail.push(pluck.getPositionAt(time - i * trail_length * 15 / pluck.speed))
+        }
+      }
+      return pluckAndTrail
+    }).flat()
+      .sort((a, b) => b.z - a.z)
+      .forEach(({ x, y, z }) => {
+        p5.fill(background)
+        p5.stroke(color_plucks)
     
-    state.ponks.forEach(ponk => {
-      ponk.update()
-      ponk.draw()
-    })
-  
-    while (state.ponksHistory.length > 300) state.ponksHistory.shift()
-    const hist = [...state.ponksHistory]
-    hist.sort((a, b) => b.z - a.z).forEach(({ x, y, z, color }) => {
-      const X = p5.map(
-        x, 0, p5.width,
-        p5.map(z, 0, state.depth, 0, p5.width * (1 - state.perspective) / 2),
-        p5.map(z, 0, state.depth, p5.width, p5.width * (state.perspective + (1 - state.perspective) / 2))
-      )
-      const Y = p5.map(
-        y, 0, p5.height,
-        p5.map(z, 0, state.depth, 0, p5.height * (1 - state.perspective) / 2),
-        p5.map(z, 0, state.depth, p5.height, p5.height * (state.perspective + (1 - state.perspective) / 2))
-      )
-      const Z = p5.map(z, 0, state.depth, state.rad, state.rad * state.perspective)
-  
-      p5.fill(background)
-      p5.stroke(color_plucks)
-      p5.ellipse(X, Y, Z)
-    })
+        p5.ellipse(
+          p5.map(
+            x, 0, p5.width,
+            p5.map(z, 0, depth, 0, p5.width * (1 - perspective) / 2),
+            p5.map(z, 0, depth, p5.width, p5.width * (perspective + (1 - perspective) / 2))
+          ),
+          p5.map(
+            y, 0, p5.height,
+            p5.map(z, 0, depth, 0, p5.height * (1 - perspective) / 2),
+            p5.map(z, 0, depth, p5.height, p5.height * (perspective + (1 - perspective) / 2))
+          ),
+          p5.map(z, 0, depth, rad, rad * perspective)
+        )
+      })
   }
 
   return <Sketch setup={setup} draw={draw} windowResized={handleResize} />
-}
-
-
-class Ponk {
-  constructor ({ note, pos, speed, angle, color }) {
-    this.note = note
-    this.color = color
-    this.pos = pos
-    this.speed = speed
-    this.vel = {
-      x: speed * 3 + 3 * Math.cos(angle[0]),
-      y: speed * 3 + 3 * Math.sin(angle[0]),
-      z: speed * 3 + 3 * Math.cos(angle[1])
-    }
-  }
-
-  update () {
-    if (this.pos.x + this.vel.x >  (state.width - state.rad) || this.pos.x + this.vel.x < state.rad) {
-      this.vel.x = -this.vel.x
-      this.pos.x = Math.max(Math.min(this.pos.x, state.width - state.rad), state.rad)
-      this.sing()
-    }
-
-    if (this.pos.y + this.vel.y >  (state.height - state.rad) || this.pos.y + this.vel.y < state.rad) {
-      this.vel.y = -this.vel.y
-      this.pos.y = Math.max(Math.min(this.pos.y, state.height - state.rad), state.rad)
-      this.sing()
-    }
-
-    if (this.pos.z + this.vel.z >  (state.depth - state.rad) || this.pos.z + this.vel.z < state.rad) {
-      this.vel.z = -this.vel.z
-      this.pos.z = Math.max(Math.min(this.pos.z, state.depth - state.rad), state.rad)
-      this.sing()
-    }
-
-    this.pos = {
-      x: this.pos.x + (state.playing ? this.vel.x : 0),
-      y: this.pos.y + (state.playing ? this.vel.y : 0),
-      z: this.pos.z + (state.playing ? this.vel.z : 0)
-    }
-  }
-
-  draw () {
-    state.ponksHistory.push({ ...this.pos, color: this.color })
-  }
-
-  sing () {
-    if (state.synth) {
-      state.synth.triggerAttackRelease(this.note, '8n', undefined, (1 - this.pos.z / state.depth) * 0.8 + 0.2) // , 0.01, 0, 1 - this.pos.z / state.depth)
-    }
-  }
 }
 
 export default CustomStyle
@@ -227,10 +192,8 @@ const styleMetadata = {
   image: '',
   creator_name: 'Nèr Arfer',
   options: {
-    // distorsion: 0.1,
-    // distorsion_wet: 0.1,
-    reverb_wet: 0.1,
-    reverb_decay: 0.1,
+    trail_length: 0.5,
+    lens: 0.5,
     color_env: '#ffffff',
     color_plucks: '#ffffff',
     background: '#000000'
