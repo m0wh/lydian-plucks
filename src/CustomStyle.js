@@ -50,20 +50,27 @@ const CustomStyle = ({
     return shuffleBag.current.random()
   }
 
+  let waveform = 'Sine'
+  if (random() < 1 / 100) { waveform = 'Triangle' } // rare property
+
   const scaleName = random([
+    'Unison',
     'Third',
     'Fourth',
     'Fifth',
     'Triad',
     'Seventh',
+    '6/9',
     'Ninth',
-    'Unison'
   ])
 
   depth = Math.max(width, height)
   perspective = 1 / (0.005 * lens * lens * depth + 1)
 
-  if (synth) synth.set({ envelope: { decay: random(10) } })
+  if (synth) synth.set({
+    oscillator: { type: waveform.toLowerCase() },
+    envelope: { decay: random(10) }
+  })
 
   const scale = notes.map((_, i) => createChord(i + 1, scaleName))
 
@@ -81,10 +88,15 @@ const CustomStyle = ({
   attributesRef.current = () => ({ // https://docs.opensea.io/docs/metadata-standards
     attributes: [
       {
+        trait_type: "Waveform",
+        value: waveform
+      },
+      {
         trait_type: "Chords Interval",
         value: scaleName
       },
       {
+        display_type: "number",
         trait_type: "Plucks Population",
         value: plucks.length
       }
@@ -106,9 +118,9 @@ const CustomStyle = ({
     dist.set({ wet: 0.05 })
     reverb.set({ decay: 5, wet: 0.3 })
 
-    synth = new Tone.PolySynth({ polyphony: 64 })
+    synth = new Tone.PolySynth({ maxPolyphony: 64 })
     synth.set({
-      oscillator: { type: 'sine' },
+      oscillator: { type: waveform.toLowerCase() },
       envelope: {
         attack: 0.0005,
         decay: random(10),
@@ -216,6 +228,7 @@ function createChord (root, name) {
     case 'triad': return getChord(root, [3, 5])
     case 'seventh': return getChord(root, [3, 5, 7])
     case 'ninth': return getChord(root, [3, 5, 9])
+    case '6/9': return getChord(root, [3, 6, 9])
     case 'unison': return getChord(root, [])
     default: return getChord(root, [])
   }
