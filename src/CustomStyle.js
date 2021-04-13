@@ -1,28 +1,7 @@
 import React, { useRef } from 'react'
 import Sketch from 'react-p5'
 import MersenneTwister from 'mersenne-twister'
-
-// import * as Tone from 'tone'
-// const reverb = new Tone.Reverb()
-//   const dist = new Tone.Distortion(0.1)
-//   const st = new Tone.StereoWidener(0.6)
-//   const comp = new Tone.Compressor(-30, 10);
-//   const limiter = new Tone.Limiter(-5)
-//   dist.set({ wet: 0.1 })
-//   reverb.set({ decay: reverb_decay * 10, wet: reverb_wet })
-//   synth = new Tone.PolySynth().chain(reverb, dist, st, comp, limiter, Tone.Destination)
-//   synth.set({
-//     oscillator: { type: 'sine' },
-//     envelope: {
-//       attack: 0,
-//       decay: random() * 10,
-//       sustain: 0,
-//       release: 1
-//     }
-//   })
-//   synth.triggerAttackRelease(this.note, '8n', undefined, (1 - this.pos.z / depth) * 0.8 + 0.2)
-
-/* === CONFIGURABLES VALUES === */
+import * as Tone from 'tone'
 
 const maxEllipses = 300
 const rad = 20 // radius of each ball
@@ -48,6 +27,7 @@ const scale = [ // chords used by plucks (lydian scale)
 let plucks
 let depth
 let perspective
+let synth
 
 class Pluck {
   constructor ({ width, height, depth }, { note, pos, speed, angle }) {
@@ -67,13 +47,24 @@ class Pluck {
 
   getPositionAt (t) {
     // triangle function (bounce) : f(x) = |(pos + vel * x + size * sign(speed)) % (2 * size) - size * sign(speed) |
-    const calculateWithBounces = (pos, vel, boxSize) =>
+    const calculatePosWithBounces = (pos, vel, boxSize) =>
       rad / 2 + Math.abs((pos + vel * t + Math.sign(vel) * (boxSize - rad)) % (2 * (boxSize - rad)) - Math.sign(vel) * (boxSize - rad))
 
     return {
-      x: calculateWithBounces(this.pos.x, this.vel.x,this.boxWidth),
-      y: calculateWithBounces(this.pos.y, this.vel.y,this.boxHeight),
-      z: calculateWithBounces(this.pos.z, this.vel.z,this.boxDepth)
+      x: calculatePosWithBounces(this.pos.x, this.vel.x,this.boxWidth),
+      y: calculatePosWithBounces(this.pos.y, this.vel.y,this.boxHeight),
+      z: calculatePosWithBounces(this.pos.z, this.vel.z,this.boxDepth)
+    }
+  }
+
+  getVelocityAt (t) {
+    const calculateVelWithBounces = (pos, vel, boxSize) =>
+      Math.sign((pos + vel * t + Math.sign(vel) * (boxSize - rad)) % (2 * (boxSize - rad)) - Math.sign(vel) * (boxSize - rad)) * vel
+
+    return {
+      x: calculateVelWithBounces(this.pos.x, this.vel.x,this.boxWidth),
+      y: calculateVelWithBounces(this.pos.y, this.vel.y,this.boxHeight),
+      z: calculateVelWithBounces(this.pos.z, this.vel.z,this.boxDepth)
     }
   }
 }
@@ -106,12 +97,13 @@ const CustomStyle = ({
 
   plucks = []
   for (let i = 0; i < random(2, 8); i++) {
-    plucks.push(new Pluck({ width, height, depth }, {
+    const pluck = new Pluck({ width, height, depth }, {
       note: random(scale),
       pos: { x: random(rad, width - rad), y: random(rad, height - rad), z: random(rad, depth - rad) },
       speed: random(.2, .8), // px / ms
       angle: [random(0, Math.PI * 2), random(0, Math.PI * 2)]
-    }))
+    })
+    plucks.push(pluck)
   }
 
   const setup = (p5, canvasParentRef) => {
@@ -120,6 +112,27 @@ const CustomStyle = ({
     if (_p5) { }
 
     p5.background(background)
+
+    const reverb = new Tone.Reverb()
+    const dist = new Tone.Distortion(0.2)
+    const st = new Tone.StereoWidener(0.6)
+    const comp = new Tone.Compressor(-30, 10);
+    const limiter = new Tone.Limiter(-5)
+    dist.set({ wet: 0.05 })
+    reverb.set({ decay: 5, wet: 0.3 })
+
+    synth = new Tone.PolySynth()
+    synth.set({
+      oscillator: { type: 'sine' },
+      envelope: {
+        attack: 0,
+        decay: random() * 10,
+        sustain: 0,
+        release: 1
+      }
+    })
+
+    synth.chain(reverb, dist, st, comp, limiter, Tone.Destination)
 
     attributesRef.current = () => {
       return { // https://docs.opensea.io/docs/metadata-standards
@@ -139,9 +152,11 @@ const CustomStyle = ({
     }
   }
 
+  let oldTime = 0
+
   const draw = (p5) => {
     const time = p5.millis()
-    
+
     // draw environment
     p5.background(background)
     p5.fill(background)
@@ -154,17 +169,28 @@ const CustomStyle = ({
     plucks.map(pluck => {
       const pluckAndTrail = []
       for (let i = 0; i < Math.round(maxEllipses / plucks.length); i++) {
-        if (time - (i * trail_length) >= 0) {
-          pluckAndTrail.push(pluck.getPositionAt(time - i * trail_length * 15 / pluck.speed))
+        if (time - i * trail_length * 15 / pluck.speed >= 0) {
+          pluckAndTrail.push(pluck.getPositionAt(
+            Math.max(0, time - i * trail_length * 15 / pluck.speed)
+          ))
         }
       }
+
+      if (
+        Math.sign(pluck.getVelocityAt(oldTime).x) !== Math.sign(pluck.getVelocityAt(time).x) ||
+        Math.sign(pluck.getVelocityAt(oldTime).y) !== Math.sign(pluck.getVelocityAt(time).y) ||
+        Math.sign(pluck.getVelocityAt(oldTime).z) !== Math.sign(pluck.getVelocityAt(time).z)
+      ) {
+        synth.triggerAttackRelease(pluck.note, '8n', undefined, p5.map(pluck.getPositionAt(time).z, 0, depth, 1, 0.2))
+      }
+      
       return pluckAndTrail
     }).flat()
       .sort((a, b) => b.z - a.z)
       .forEach(({ x, y, z }) => {
         p5.fill(background)
         p5.stroke(color_plucks)
-    
+
         p5.ellipse(
           p5.map(
             x, 0, p5.width,
@@ -179,6 +205,8 @@ const CustomStyle = ({
           p5.map(z, 0, depth, rad, rad * perspective)
         )
       })
+
+    oldTime = time
   }
 
   return <Sketch setup={setup} draw={draw} windowResized={handleResize} />
