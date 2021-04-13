@@ -117,11 +117,11 @@ const CustomStyle = ({
       return { // https://docs.opensea.io/docs/metadata-standards
         attributes: [
           {
-            trait_type: "Chords interval", 
+            trait_type: "Chords Interval",
             value: scaleName
-          }, 
+          },
           {
-            trait_type: "Plucks Population", 
+            trait_type: "Plucks Population",
             value: plucks.length
           }
         ]
