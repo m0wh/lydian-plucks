@@ -3,22 +3,132 @@ import Sketch from 'react-p5'
 import MersenneTwister from 'mersenne-twister'
 import * as Tone from 'tone'
 
+const plucksMinMax = [2, 8]
 const maxEllipses = 300
 const rad = 20 // radius of each ball
-const scale = [ // chords used by plucks (lydian scale)
-  ['C3', 'E3', 'G3'],
-  ['D3', 'F#3', 'A3'],
-  ['E3', 'G3', 'B3'],
-  ['F#3', 'A4', 'C3'],
-  ['G3', 'B4', 'D3'],
-  ['A4', 'C4', 'E3'],
-  ['B4', 'D4', 'F#3'],
-  ['C4', 'E4', 'G3'],
-  ['D4', 'F#4', 'A4'],
-  ['E4', 'G4', 'B4'],
-  ['F#4', 'A4', 'C4'],
-  ['G4', 'A4', 'D4'],
-  ['G4', 'A4', 'D4']
+
+// C3 / D3 / E3 / F#3 / G3 / A4 / B4
+
+const notes = [
+  { name: 'C', octave: 3 },
+  { name: 'D', octave: 3 },
+  { name: 'E', octave: 3 },
+  { name: 'F#', octave: 3 },
+  { name: 'G', octave: 3 },
+  { name: 'A', octave: 4 },
+  { name: 'B', octave: 4 }
+]
+
+function getChord (root, intervals) {
+  return [
+    notes[root - 1].name + notes[root - 1].octave,
+    ...intervals.map(interval => {
+      const index = (root + interval - 1) - 1
+      return notes[index % notes.length].name + (notes[index % notes.length].octave + Math.floor(index / notes.length))
+    })
+  ]
+}
+
+function createChord (root, name) {
+  switch (name.toLowerCase()) {
+    case 'third': return getChord(root, [3])
+    case 'fourth': return getChord(root, [4])
+    case 'fifth': return getChord(root, [5])
+    case 'triad': return getChord(root, [3, 5])
+    case 'seventh': return getChord(root, [3, 5, 7])
+    case 'ninth': return getChord(root, [3, 5, 9])
+    case 'unison': return getChord(root, [3, 5, 9])
+    default: return getChord(root, [])
+  }
+}
+
+
+const scaleChords = [
+  {
+    name: 'Unisons',
+    chords: [
+      ['C3'],
+      ['D3'],
+      ['E3'],
+      ['F#3'],
+      ['G3'],
+      ['A4'],
+      ['B4'],
+      ['C4'],
+      ['D4'],
+      ['E4'],
+      ['F#4'],
+      ['G4']
+    ]
+  },
+  {
+    name: 'Triads',
+    chords: [
+      ['C3', 'E3', 'G3'],
+      ['D3', 'F#3', 'A3'],
+      ['E3', 'G3', 'B3'],
+      ['F#3', 'A4', 'C3'],
+      ['G3', 'B4', 'D3'],
+      ['A4', 'C4', 'E3'],
+      ['B4', 'D4', 'F#3'],
+      ['C4', 'E4', 'G3'],
+      ['D4', 'F#4', 'A4'],
+      ['E4', 'G4', 'B4'],
+      ['F#4', 'A4', 'C4'],
+      ['G4', 'A4', 'D4']
+    ]
+  },
+  {
+    name: 'Fourths',
+    chords: [
+      ['C3', 'F#3'],
+      ['D3', 'G3'],
+      ['E3', 'A4'],
+      ['F#3', 'B4'],
+      ['G3', 'C4'],
+      ['A4', 'D4'],
+      ['B4', 'E4'],
+      ['C4', 'F#4'],
+      ['D4', 'G4'],
+      ['E4', 'C5'],
+      ['F#4', 'D5'],
+      ['G4', 'E5']
+    ]
+  },
+  {
+    name: 'Fifth',
+    chords: [
+      ['C3', 'G3'],
+      ['D3', 'A3'],
+      ['E3', 'B3'],
+      ['F#3', 'C3'],
+      ['G3', 'D3'],
+      ['A4', 'E3'],
+      ['B4', 'F#3'],
+      ['C4', 'G3'],
+      ['D4', 'A4'],
+      ['E4', 'B4'],
+      ['F#4', 'C4'],
+      ['G4', 'D4']
+    ]
+  },
+  {
+    name: 'Sevenths',
+    chords: [
+      ['C3', 'E3', 'G3', 'B4'],
+      ['D3', 'F#3', 'A3', 'C4'],
+      ['E3', 'G3', 'B3', 'D4'],
+      ['F#3', 'A4', 'C3', 'E4'],
+      ['G3', 'B4', 'D3', 'F#4'],
+      ['A4', 'C4', 'E3', 'G4'],
+      ['B4', 'D4', 'F#3', 'A5'],
+      ['C4', 'E4', 'G3', 'B5'],
+      ['D4', 'F#4', 'A4', 'C5'],
+      ['E4', 'G4', 'B4', 'D5'],
+      ['F#4', 'A4', 'C4', 'E5'],
+      ['G4', 'A4', 'D4', 'F#5']
+    ]
+  }
 ]
 
 /* ============================ */
@@ -92,11 +202,24 @@ const CustomStyle = ({
     return shuffleBag.current.random()
   }
 
+  const scaleName = random([
+    'Third',
+    'Fourth',
+    'Fifth',
+    'Triad',
+    'Seventh',
+    'Ninth',
+    'Unison'
+  ])
+
+  const scale = notes.map((_, i) => createChord(i + 1, scaleName))
+  console.log(scaleName)
+
   depth = Math.max(width, height)
   perspective = 1 / (0.005 * lens * lens * depth + 1)
 
   plucks = []
-  for (let i = 0; i < random(2, 8); i++) {
+  for (let i = 0; i < random(...plucksMinMax); i++) {
     const pluck = new Pluck({ width, height, depth }, {
       note: random(scale),
       pos: { x: random(rad, width - rad), y: random(rad, height - rad), z: random(rad, depth - rad) },
@@ -121,7 +244,7 @@ const CustomStyle = ({
     dist.set({ wet: 0.05 })
     reverb.set({ decay: 5, wet: 0.3 })
 
-    synth = new Tone.PolySynth()
+    synth = new Tone.PolySynth({ polyphony: 32 })
     synth.set({
       oscillator: { type: 'sine' },
       envelope: {
@@ -138,16 +261,14 @@ const CustomStyle = ({
       return { // https://docs.opensea.io/docs/metadata-standards
         attributes: [
           {
-            display_type: 'number',
-            trait_type: 'your trait here number',
-            value: hoistedValue.current, // using the hoisted value from within the draw() method, stored in the ref.
-          },
-
+            trait_type: "Chords interval", 
+            value: scaleName
+          }, 
           {
-            trait_type: 'your trait here text',
-            value: 'replace me',
-          },
-        ],
+            trait_type: "Plucks Population", 
+            value: plucks.length
+          }
+        ]
       }
     }
   }
@@ -167,21 +288,21 @@ const CustomStyle = ({
 
     // draw plucks and their trails
     plucks.map(pluck => {
-      const pluckAndTrail = []
-      for (let i = 0; i < Math.round(maxEllipses / plucks.length); i++) {
-        if (time - i * trail_length * 15 / pluck.speed >= 0) {
-          pluckAndTrail.push(pluck.getPositionAt(
-            Math.max(0, time - i * trail_length * 15 / pluck.speed)
-          ))
-        }
-      }
-
       if (
         Math.sign(pluck.getVelocityAt(oldTime).x) !== Math.sign(pluck.getVelocityAt(time).x) ||
         Math.sign(pluck.getVelocityAt(oldTime).y) !== Math.sign(pluck.getVelocityAt(time).y) ||
         Math.sign(pluck.getVelocityAt(oldTime).z) !== Math.sign(pluck.getVelocityAt(time).z)
       ) {
-        synth.triggerAttackRelease(pluck.note, '8n', undefined, p5.map(pluck.getPositionAt(time).z, 0, depth, 1, 0.2))
+        synth.triggerAttackRelease(pluck.note, '8n', undefined, p5.map(pluck.getPositionAt(time).z, 0, depth, 1, 0.05))
+      }
+
+      const pluckAndTrail = []
+      for (let i = 0; i < Math.round(maxEllipses / plucks.length); i++) {
+        if (time - i * trail_length * 15 / pluck.speed >= 0) {
+          pluckAndTrail.push({...pluck.getPositionAt(
+            Math.max(0, time - i * trail_length * 15 / pluck.speed)
+          )})
+        }
       }
       
       return pluckAndTrail
