@@ -67,7 +67,7 @@ function App() {
       <Sidebar
         blocks={blocks}
         blockNumber={blockNumber}
-        attributes={attributesRef.current || {}}
+        attributesRef={attributesRef}
         mods={mods}
         handleBlockChange={(e) => setBlockNumber(e)}
       />

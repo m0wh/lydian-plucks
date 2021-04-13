@@ -7,7 +7,7 @@ const Sidebar = function ({
   mods,
   blockNumber,
   blocks,
-  attributes,
+  attributesRef,
   handleBlockChange,
 }) {
   const [isVisible, toggleVisibility] = useState(true);
@@ -63,8 +63,8 @@ const Sidebar = function ({
 
       <div className="section-header">Custom Attributes</div>
       <div className="section-body">
-        {attributes.attributes
-          ? attributes.attributes.map((attribute, index) => {
+        {attributesRef.current && attributesRef.current().attributes
+          ? attributesRef.current().attributes.map((attribute, index) => {
               return (
                 <div className="custom-attribute" key={index}>
                   <div className="content-header">{attribute.trait_type}</div>

@@ -27,8 +27,6 @@ let depth
 let perspective
 let synth
 
-let lastBlockHash = ''
-
 const CustomStyle = ({
   canvasRef, attributesRef, handleResize,
   block, width, height,
@@ -65,25 +63,33 @@ const CustomStyle = ({
   depth = Math.max(width, height)
   perspective = 1 / (0.005 * lens * lens * depth + 1)
 
-  if (lastBlockHash !== block.hash) {
-    if (synth) synth.set({ envelope: { decay: random(10) } })
+  if (synth) synth.set({ envelope: { decay: random(10) } })
 
-    const scale = notes.map((_, i) => createChord(i + 1, scaleName))
+  const scale = notes.map((_, i) => createChord(i + 1, scaleName))
 
-    plucks = []
-    for (let i = 0; i < random(...plucksMinMax); i++) {
-      const pluck = new Pluck({ width, height, depth }, {
-        note: random(scale),
-        pos: { x: random(rad, width - rad), y: random(rad, height - rad), z: random(rad, depth - rad) },
-        speed: random(.15, .6), // px / ms
-        angle: [random(0, Math.PI * 2), random(0, Math.PI * 2)]
-      })
-      plucks.push(pluck)
-    }
-
-    console.info(`• Using ${scaleName.toLowerCase()} chords\n• ${plucks.length} plucks bouncing`)
-    lastBlockHash = block.hash
+  plucks = []
+  for (let i = 0; i < random(...plucksMinMax); i++) {
+    const pluck = new Pluck({ width, height, depth }, {
+      note: random(scale),
+      pos: { x: random(rad, width - rad), y: random(rad, height - rad), z: random(rad, depth - rad) },
+      speed: random(.15, .6), // px / ms
+      angle: [random(0, Math.PI * 2), random(0, Math.PI * 2)]
+    })
+    plucks.push(pluck)
   }
+
+  attributesRef.current = () => ({ // https://docs.opensea.io/docs/metadata-standards
+    attributes: [
+      {
+        trait_type: "Chords Interval",
+        value: scaleName
+      },
+      {
+        trait_type: "Plucks Population",
+        value: plucks.length
+      }
+    ]
+  })
 
   const setup = (p5, canvasParentRef) => {
     const _p5 = p5.createCanvas(width, height).parent(canvasParentRef)
@@ -104,7 +110,7 @@ const CustomStyle = ({
     synth.set({
       oscillator: { type: 'sine' },
       envelope: {
-        attack: 0,
+        attack: 0.0005,
         decay: random(10),
         sustain: 0,
         release: 1
@@ -112,21 +118,6 @@ const CustomStyle = ({
     })
 
     synth.chain(reverb, dist, st, comp, limiter, Tone.Destination)
-
-    attributesRef.current = () => {
-      return { // https://docs.opensea.io/docs/metadata-standards
-        attributes: [
-          {
-            trait_type: "Chords Interval",
-            value: scaleName
-          },
-          {
-            trait_type: "Plucks Population",
-            value: plucks.length
-          }
-        ]
-      }
-    }
   }
 
   let oldTime = 0
@@ -225,7 +216,7 @@ function createChord (root, name) {
     case 'triad': return getChord(root, [3, 5])
     case 'seventh': return getChord(root, [3, 5, 7])
     case 'ninth': return getChord(root, [3, 5, 9])
-    case 'unison': return getChord(root, [3, 5, 9])
+    case 'unison': return getChord(root, [])
     default: return getChord(root, [])
   }
 }
