@@ -6,10 +6,10 @@ import * as Tone from 'tone'
 const plucksMinMax = [2, 8]
 const maxEllipses = 300
 const rad = 20 // radius of each ball
-
-// C3 / D3 / E3 / F#3 / G3 / A4 / B4
-
 const notes = [
+  { name: 'G', octave: 2 },
+  { name: 'A', octave: 3 },
+  { name: 'B', octave: 3 },
   { name: 'C', octave: 3 },
   { name: 'D', octave: 3 },
   { name: 'E', octave: 3 },
@@ -17,118 +17,6 @@ const notes = [
   { name: 'G', octave: 3 },
   { name: 'A', octave: 4 },
   { name: 'B', octave: 4 }
-]
-
-function getChord (root, intervals) {
-  return [
-    notes[root - 1].name + notes[root - 1].octave,
-    ...intervals.map(interval => {
-      const index = (root + interval - 1) - 1
-      return notes[index % notes.length].name + (notes[index % notes.length].octave + Math.floor(index / notes.length))
-    })
-  ]
-}
-
-function createChord (root, name) {
-  switch (name.toLowerCase()) {
-    case 'third': return getChord(root, [3])
-    case 'fourth': return getChord(root, [4])
-    case 'fifth': return getChord(root, [5])
-    case 'triad': return getChord(root, [3, 5])
-    case 'seventh': return getChord(root, [3, 5, 7])
-    case 'ninth': return getChord(root, [3, 5, 9])
-    case 'unison': return getChord(root, [3, 5, 9])
-    default: return getChord(root, [])
-  }
-}
-
-
-const scaleChords = [
-  {
-    name: 'Unisons',
-    chords: [
-      ['C3'],
-      ['D3'],
-      ['E3'],
-      ['F#3'],
-      ['G3'],
-      ['A4'],
-      ['B4'],
-      ['C4'],
-      ['D4'],
-      ['E4'],
-      ['F#4'],
-      ['G4']
-    ]
-  },
-  {
-    name: 'Triads',
-    chords: [
-      ['C3', 'E3', 'G3'],
-      ['D3', 'F#3', 'A3'],
-      ['E3', 'G3', 'B3'],
-      ['F#3', 'A4', 'C3'],
-      ['G3', 'B4', 'D3'],
-      ['A4', 'C4', 'E3'],
-      ['B4', 'D4', 'F#3'],
-      ['C4', 'E4', 'G3'],
-      ['D4', 'F#4', 'A4'],
-      ['E4', 'G4', 'B4'],
-      ['F#4', 'A4', 'C4'],
-      ['G4', 'A4', 'D4']
-    ]
-  },
-  {
-    name: 'Fourths',
-    chords: [
-      ['C3', 'F#3'],
-      ['D3', 'G3'],
-      ['E3', 'A4'],
-      ['F#3', 'B4'],
-      ['G3', 'C4'],
-      ['A4', 'D4'],
-      ['B4', 'E4'],
-      ['C4', 'F#4'],
-      ['D4', 'G4'],
-      ['E4', 'C5'],
-      ['F#4', 'D5'],
-      ['G4', 'E5']
-    ]
-  },
-  {
-    name: 'Fifth',
-    chords: [
-      ['C3', 'G3'],
-      ['D3', 'A3'],
-      ['E3', 'B3'],
-      ['F#3', 'C3'],
-      ['G3', 'D3'],
-      ['A4', 'E3'],
-      ['B4', 'F#3'],
-      ['C4', 'G3'],
-      ['D4', 'A4'],
-      ['E4', 'B4'],
-      ['F#4', 'C4'],
-      ['G4', 'D4']
-    ]
-  },
-  {
-    name: 'Sevenths',
-    chords: [
-      ['C3', 'E3', 'G3', 'B4'],
-      ['D3', 'F#3', 'A3', 'C4'],
-      ['E3', 'G3', 'B3', 'D4'],
-      ['F#3', 'A4', 'C3', 'E4'],
-      ['G3', 'B4', 'D3', 'F#4'],
-      ['A4', 'C4', 'E3', 'G4'],
-      ['B4', 'D4', 'F#3', 'A5'],
-      ['C4', 'E4', 'G3', 'B5'],
-      ['D4', 'F#4', 'A4', 'C5'],
-      ['E4', 'G4', 'B4', 'D5'],
-      ['F#4', 'A4', 'C4', 'E5'],
-      ['G4', 'A4', 'D4', 'F#5']
-    ]
-  }
 ]
 
 /* ============================ */
@@ -139,45 +27,7 @@ let depth
 let perspective
 let synth
 
-class Pluck {
-  constructor ({ width, height, depth }, { note, pos, speed, angle }) {
-    this.boxWidth = width
-    this.boxHeight = height
-    this.boxDepth = depth
-
-    this.speed = speed
-    this.note = note
-    this.pos = pos
-    this.vel = {
-      x: speed * Math.cos(angle[0]),
-      y: speed * Math.sin(angle[0]),
-      z: speed * Math.cos(angle[1])
-    }
-  }
-
-  getPositionAt (t) {
-    // triangle function (bounce) : f(x) = |(pos + vel * x + size * sign(speed)) % (2 * size) - size * sign(speed) |
-    const calculatePosWithBounces = (pos, vel, boxSize) =>
-      rad / 2 + Math.abs((pos + vel * t + Math.sign(vel) * (boxSize - rad)) % (2 * (boxSize - rad)) - Math.sign(vel) * (boxSize - rad))
-
-    return {
-      x: calculatePosWithBounces(this.pos.x, this.vel.x,this.boxWidth),
-      y: calculatePosWithBounces(this.pos.y, this.vel.y,this.boxHeight),
-      z: calculatePosWithBounces(this.pos.z, this.vel.z,this.boxDepth)
-    }
-  }
-
-  getVelocityAt (t) {
-    const calculateVelWithBounces = (pos, vel, boxSize) =>
-      Math.sign((pos + vel * t + Math.sign(vel) * (boxSize - rad)) % (2 * (boxSize - rad)) - Math.sign(vel) * (boxSize - rad)) * vel
-
-    return {
-      x: calculateVelWithBounces(this.pos.x, this.vel.x,this.boxWidth),
-      y: calculateVelWithBounces(this.pos.y, this.vel.y,this.boxHeight),
-      z: calculateVelWithBounces(this.pos.z, this.vel.z,this.boxDepth)
-    }
-  }
-}
+let lastBlockHash = ''
 
 const CustomStyle = ({
   canvasRef, attributesRef, handleResize,
@@ -190,7 +40,7 @@ const CustomStyle = ({
   background = '#000000'
 }) => {
   const shuffleBag = useRef()
-  const hoistedValue = useRef()
+  // const hoistedValue = useRef()
 
   // seeded random function
   let seed = parseInt(block.hash.slice(0, 16), 16);
@@ -212,21 +62,27 @@ const CustomStyle = ({
     'Unison'
   ])
 
-  const scale = notes.map((_, i) => createChord(i + 1, scaleName))
-  console.log(scaleName)
-
   depth = Math.max(width, height)
   perspective = 1 / (0.005 * lens * lens * depth + 1)
 
-  plucks = []
-  for (let i = 0; i < random(...plucksMinMax); i++) {
-    const pluck = new Pluck({ width, height, depth }, {
-      note: random(scale),
-      pos: { x: random(rad, width - rad), y: random(rad, height - rad), z: random(rad, depth - rad) },
-      speed: random(.2, .8), // px / ms
-      angle: [random(0, Math.PI * 2), random(0, Math.PI * 2)]
-    })
-    plucks.push(pluck)
+  if (lastBlockHash !== block.hash) {
+    if (synth) synth.set({ envelope: { decay: random(10) } })
+
+    const scale = notes.map((_, i) => createChord(i + 1, scaleName))
+
+    plucks = []
+    for (let i = 0; i < random(...plucksMinMax); i++) {
+      const pluck = new Pluck({ width, height, depth }, {
+        note: random(scale),
+        pos: { x: random(rad, width - rad), y: random(rad, height - rad), z: random(rad, depth - rad) },
+        speed: random(.15, .6), // px / ms
+        angle: [random(0, Math.PI * 2), random(0, Math.PI * 2)]
+      })
+      plucks.push(pluck)
+    }
+
+    console.info(`• Using ${scaleName.toLowerCase()} chords\n• ${plucks.length} plucks bouncing`)
+    lastBlockHash = block.hash
   }
 
   const setup = (p5, canvasParentRef) => {
@@ -244,12 +100,12 @@ const CustomStyle = ({
     dist.set({ wet: 0.05 })
     reverb.set({ decay: 5, wet: 0.3 })
 
-    synth = new Tone.PolySynth({ polyphony: 32 })
+    synth = new Tone.PolySynth({ polyphony: 64 })
     synth.set({
       oscillator: { type: 'sine' },
       envelope: {
         attack: 0,
-        decay: random() * 10,
+        decay: random(10),
         sustain: 0,
         release: 1
       }
@@ -350,3 +206,66 @@ const styleMetadata = {
 }
 
 export { styleMetadata }
+
+function getChord (root, intervals) {
+  return [
+    notes[root - 1].name + notes[root - 1].octave,
+    ...intervals.map(interval => {
+      const index = (root + interval - 1) - 1
+      return notes[index % notes.length].name + (notes[index % notes.length].octave + Math.floor(index / notes.length))
+    })
+  ]
+}
+
+function createChord (root, name) {
+  switch (name.toLowerCase()) {
+    case 'third': return getChord(root, [3])
+    case 'fourth': return getChord(root, [4])
+    case 'fifth': return getChord(root, [5])
+    case 'triad': return getChord(root, [3, 5])
+    case 'seventh': return getChord(root, [3, 5, 7])
+    case 'ninth': return getChord(root, [3, 5, 9])
+    case 'unison': return getChord(root, [3, 5, 9])
+    default: return getChord(root, [])
+  }
+}
+
+class Pluck {
+  constructor ({ width, height, depth }, { note, pos, speed, angle }) {
+    this.boxWidth = width
+    this.boxHeight = height
+    this.boxDepth = depth
+
+    this.speed = speed
+    this.note = note
+    this.pos = pos
+    this.vel = {
+      x: speed * Math.cos(angle[0]),
+      y: speed * Math.sin(angle[0]),
+      z: speed * Math.cos(angle[1])
+    }
+  }
+
+  getPositionAt (t) {
+    // triangle function (bounce) : f(x) = |(pos + vel * x + size * sign(speed)) % (2 * size) - size * sign(speed) |
+    const calculatePosWithBounces = (pos, vel, boxSize) =>
+      rad / 2 + Math.abs((pos + vel * t + Math.sign(vel) * (boxSize - rad)) % (2 * (boxSize - rad)) - Math.sign(vel) * (boxSize - rad))
+
+    return {
+      x: calculatePosWithBounces(this.pos.x, this.vel.x,this.boxWidth),
+      y: calculatePosWithBounces(this.pos.y, this.vel.y,this.boxHeight),
+      z: calculatePosWithBounces(this.pos.z, this.vel.z,this.boxDepth)
+    }
+  }
+
+  getVelocityAt (t) {
+    const calculateVelWithBounces = (pos, vel, boxSize) =>
+      Math.sign((pos + vel * t + Math.sign(vel) * (boxSize - rad)) % (2 * (boxSize - rad)) - Math.sign(vel) * (boxSize - rad)) * vel
+
+    return {
+      x: calculateVelWithBounces(this.pos.x, this.vel.x,this.boxWidth),
+      y: calculateVelWithBounces(this.pos.y, this.vel.y,this.boxHeight),
+      z: calculateVelWithBounces(this.pos.z, this.vel.z,this.boxDepth)
+    }
+  }
+}
