@@ -27,10 +27,11 @@ let depth
 let perspective
 let synth
 
+
 const CustomStyle = ({
   canvasRef, attributesRef, handleResize,
   block, width, height,
-
+  
   trail_length = 0.5,
   lens = 0.5,
   color_env = '#ffffff',
@@ -39,7 +40,7 @@ const CustomStyle = ({
 }) => {
   const shuffleBag = useRef()
   // const hoistedValue = useRef()
-
+  
   // seeded random function
   let seed = parseInt(block.hash.slice(0, 16), 16);
   shuffleBag.current = new MersenneTwister(seed);
@@ -49,6 +50,13 @@ const CustomStyle = ({
     if (min instanceof Array) return min[Math.round(shuffleBag.current.random() * (min.length - 1))]
     return shuffleBag.current.random()
   }
+
+  document.addEventListener('click', () => {
+    if (Tone.context.rawContext.state !== 'running') {
+      Tone.context.rawContext.resume()
+      Tone.start()
+    }
+  })
 
   let waveform = 'Sine'
   if (random() < 1 / 100) { waveform = 'Triangle' } // rare property
