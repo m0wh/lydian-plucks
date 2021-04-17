@@ -4,7 +4,8 @@ import MersenneTwister from 'mersenne-twister'
 import * as Tone from 'tone'
 
 const plucksMinMax = [2, 8]
-const maxEllipses = 300
+const maxEllipses = 200
+const maxPolyphony = 16
 const rad = 20 // radius of each ball
 const notes = [
   { name: 'G', octave: 2 },
@@ -33,7 +34,9 @@ const CustomStyle = ({
   block, width, height,
   
   trail_length = 0.5,
-  lens = 0.5,
+  fov = 0.5,
+  persp_x = 0.5,
+  persp_y = 0.5,
   color_env = '#ffffff',
   color_plucks = '#ffffff',
   background = '#000000'
@@ -59,7 +62,7 @@ const CustomStyle = ({
   })
 
   let waveform = 'Sine'
-  if (random() < 1 / 100) { waveform = 'Triangle' } // rare property
+  if (random() < 5 / 100) { waveform = 'Triangle' } // rare property
 
   const scaleName = random([
     'Unison',
@@ -73,7 +76,7 @@ const CustomStyle = ({
   ])
 
   depth = Math.max(width, height)
-  perspective = 1 / (0.005 * lens * lens * depth + 1)
+  perspective = 1 / (0.005 * fov * fov * depth + 1)
 
   if (synth) synth.set({
     oscillator: { type: waveform.toLowerCase() },
@@ -119,25 +122,23 @@ const CustomStyle = ({
     p5.background(background)
 
     const reverb = new Tone.Reverb()
-    const dist = new Tone.Distortion(0.2)
-    const st = new Tone.StereoWidener(0.6)
-    const comp = new Tone.Compressor(-30, 10);
-    const limiter = new Tone.Limiter(-5)
+    const dist = new Tone.Distortion(0.15)
+    const limiter = new Tone.Limiter(-12)
     dist.set({ wet: 0.05 })
-    reverb.set({ decay: 5, wet: 0.3 })
+    reverb.set({ decay: 4, wet: 0.2, preDelay: 0.1 })
 
-    synth = new Tone.PolySynth({ maxPolyphony: 64 })
+    synth = new Tone.PolySynth({ maxPolyphony })
     synth.set({
       oscillator: { type: waveform.toLowerCase() },
       envelope: {
-        attack: 0.0005,
+        attack: 0.0008,
         decay: random(10),
         sustain: 0,
         release: 1
       }
     })
 
-    synth.chain(reverb, dist, st, comp, limiter, Tone.Destination)
+    synth.chain(reverb, dist, limiter, Tone.Destination)
   }
 
   let oldTime = 0
@@ -149,9 +150,13 @@ const CustomStyle = ({
     p5.background(background)
     p5.fill(background)
     p5.stroke(color_env)
-    p5.line(0, 0, p5.width, p5.height)
-    p5.line(0, p5.height, p5.width, 0)
-    p5.rect(p5.width * (1 - perspective) / 2, p5.height * (1 - perspective) / 2, p5.width * perspective, p5.height * perspective)
+
+    p5.line(0, 0, p5.width * persp_x, p5.height * persp_y) // top left
+    p5.line(p5.width, 0, p5.width * persp_x, p5.height * persp_y) // top right
+    p5.line(0, p5.height, p5.width * persp_x, p5.height * persp_y) // bottom left
+    p5.line(p5.width, p5.height, p5.width * persp_x, p5.height * persp_y) // bottom right
+
+    p5.rect(p5.width * (1 - perspective) * persp_x, p5.height * (1 - perspective) * persp_y, p5.width * perspective, p5.height * perspective)
 
     // draw plucks and their trails
     plucks.map(pluck => {
@@ -182,13 +187,13 @@ const CustomStyle = ({
         p5.ellipse(
           p5.map(
             x, 0, p5.width,
-            p5.map(z, 0, depth, 0, p5.width * (1 - perspective) / 2),
-            p5.map(z, 0, depth, p5.width, p5.width * (perspective + (1 - perspective) / 2))
+            p5.map(z, 0, depth, 0, p5.width * (1 - perspective) * persp_x),
+            p5.map(z, 0, depth, p5.width, p5.width * (perspective + (1 - perspective) * persp_x))
           ),
           p5.map(
             y, 0, p5.height,
-            p5.map(z, 0, depth, 0, p5.height * (1 - perspective) / 2),
-            p5.map(z, 0, depth, p5.height, p5.height * (perspective + (1 - perspective) / 2))
+            p5.map(z, 0, depth, 0, p5.height * (1 - perspective) * persp_y),
+            p5.map(z, 0, depth, p5.height, p5.height * (perspective + (1 - perspective) * persp_y))
           ),
           p5.map(z, 0, depth, rad, rad * perspective)
         )
@@ -209,7 +214,9 @@ const styleMetadata = {
   creator_name: 'Nèr Arfer',
   options: {
     trail_length: 0.5,
-    lens: 0.5,
+    fov: 0.5,
+    persp_x: 0.5,
+    persp_y: 0.5,
     color_env: '#ffffff',
     color_plucks: '#ffffff',
     background: '#000000'
