@@ -209,7 +209,7 @@ export default CustomStyle
 
 const styleMetadata = {
   name: 'Lydian Plucks',
-  description: 'Generative Rythm Composer',
+  description: 'Observe and listen to these primitive crypto-life forms bouncing inside Ethereum blocks.',
   image: '',
   creator_name: 'Nèr Arfer',
   options: {
