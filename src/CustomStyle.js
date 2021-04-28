@@ -6,7 +6,7 @@ import * as Tone from 'tone'
 const plucksMinMax = [2, 8]
 const maxEllipses = 200
 const maxPolyphony = 16
-const rad = 20 // radius of each ball
+const rad = 20 // rad * Mius of each ball
 const notes = [
   { name: 'G', octave: 2 },
   { name: 'A', octave: 3 },
@@ -24,7 +24,7 @@ const notes = [
 
 // initial values
 let plucks
-let depth
+let M, DEPTH, WIDTH, HEIGHT, CENTER
 let perspective
 let synth
 
@@ -37,6 +37,7 @@ const CustomStyle = ({
   fov = 0.5,
   persp_x = 0.5,
   persp_y = 0.5,
+  ratio = 0.5,
   color_env = '#ffffff',
   color_plucks = '#ffffff',
   background = '#000000'
@@ -75,8 +76,12 @@ const CustomStyle = ({
     'Ninth',
   ])
 
-  depth = Math.max(width, height)
-  perspective = 1 / (0.005 * fov * fov * depth + 1)
+  DEPTH = Math.min(width, height)
+  WIDTH = Math.min(width, height) * 0.9 * (ratio > 0.5 ? 1 - (ratio - 0.5) : 1)
+  HEIGHT = Math.min(width, height) * 0.9 * (ratio < 0.5 ? 0.5 + ratio : 1)
+  CENTER = { x: (width - WIDTH) / 2, y: (height - HEIGHT) / 2 }
+  M = Math.min(width, height) / 450
+  perspective = 1 / (0.005 * fov * fov * DEPTH + 1)
 
   if (synth) synth.set({
     oscillator: { type: waveform.toLowerCase() },
@@ -87,9 +92,9 @@ const CustomStyle = ({
 
   plucks = []
   for (let i = 0; i < random(...plucksMinMax); i++) {
-    const pluck = new Pluck({ width, height, depth }, {
+    const pluck = new Pluck({ width: WIDTH, height: HEIGHT, depth: DEPTH }, {
       note: random(scale),
-      pos: { x: random(rad, width - rad), y: random(rad, height - rad), z: random(rad, depth - rad) },
+      pos: { x: random(rad * M, WIDTH - rad * M), y: random(rad * M, HEIGHT - rad * M), z: random(rad * M, DEPTH - rad * M) },
       speed: random(.15, .6), // px / ms
       angle: [random(0, Math.PI * 2), random(0, Math.PI * 2)]
     })
@@ -127,6 +132,7 @@ const CustomStyle = ({
     dist.set({ wet: 0.05 })
     reverb.set({ decay: 4, wet: 0.2, preDelay: 0.1 })
 
+    Tone.Destination.volume.value = -24
     synth = new Tone.PolySynth({ maxPolyphony })
     synth.set({
       oscillator: { type: waveform.toLowerCase() },
@@ -146,17 +152,24 @@ const CustomStyle = ({
   const draw = (p5) => {
     const time = p5.millis()
 
+    p5.translate(CENTER.x, CENTER.y)
+
     // draw environment
     p5.background(background)
     p5.fill(background)
     p5.stroke(color_env)
+    p5.strokeWeight(M)
 
-    p5.line(0, 0, p5.width * persp_x, p5.height * persp_y) // top left
-    p5.line(p5.width, 0, p5.width * persp_x, p5.height * persp_y) // top right
-    p5.line(0, p5.height, p5.width * persp_x, p5.height * persp_y) // bottom left
-    p5.line(p5.width, p5.height, p5.width * persp_x, p5.height * persp_y) // bottom right
+    p5.line(-M, -M, WIDTH * persp_x - M, HEIGHT * persp_y - M) // top left
+    p5.line(WIDTH, -M, WIDTH * persp_x, HEIGHT * persp_y - M) // top right
+    p5.line(-M, HEIGHT, WIDTH * persp_x - M, HEIGHT * persp_y) // bottom left
+    p5.line(WIDTH, HEIGHT, WIDTH * persp_x, HEIGHT * persp_y) // bottom right
 
-    p5.rect(p5.width * (1 - perspective) * persp_x, p5.height * (1 - perspective) * persp_y, p5.width * perspective, p5.height * perspective)
+    p5.rect(WIDTH * (1 - perspective) * persp_x - M, HEIGHT * (1 - perspective) * persp_y - M, WIDTH * perspective + M, HEIGHT * perspective + M)
+
+    p5.noFill()
+
+    p5.rect(-M, -M, WIDTH + M, HEIGHT + M)
 
     // draw plucks and their trails
     plucks.map(pluck => {
@@ -165,14 +178,14 @@ const CustomStyle = ({
         Math.sign(pluck.getVelocityAt(oldTime).y) !== Math.sign(pluck.getVelocityAt(time).y) ||
         Math.sign(pluck.getVelocityAt(oldTime).z) !== Math.sign(pluck.getVelocityAt(time).z)
       ) {
-        synth.triggerAttackRelease(pluck.note, '8n', undefined, p5.map(pluck.getPositionAt(time).z, 0, depth, 1, 0.05))
+        synth.triggerAttackRelease(pluck.note, '8n', undefined, p5.map(pluck.getPositionAt(time).z, 0, DEPTH, 1, 0.05))
       }
 
       const pluckAndTrail = []
       for (let i = 0; i < Math.round(maxEllipses / plucks.length); i++) {
-        if (time - i * trail_length * 15 / pluck.speed >= 0) {
+        if (time - i * trail_length * 15 * M / pluck.speed >= 0) {
           pluckAndTrail.push({...pluck.getPositionAt(
-            Math.max(0, time - i * trail_length * 15 / pluck.speed)
+            Math.max(0, time - i * trail_length * 15 * M / pluck.speed)
           )})
         }
       }
@@ -186,16 +199,16 @@ const CustomStyle = ({
 
         p5.ellipse(
           p5.map(
-            x, 0, p5.width,
-            p5.map(z, 0, depth, 0, p5.width * (1 - perspective) * persp_x),
-            p5.map(z, 0, depth, p5.width, p5.width * (perspective + (1 - perspective) * persp_x))
+            x, 0, WIDTH,
+            p5.map(z, 0, DEPTH, 0, WIDTH * (1 - perspective) * persp_x),
+            p5.map(z, 0, DEPTH, WIDTH, WIDTH * (perspective + (1 - perspective) * persp_x))
           ),
           p5.map(
-            y, 0, p5.height,
-            p5.map(z, 0, depth, 0, p5.height * (1 - perspective) * persp_y),
-            p5.map(z, 0, depth, p5.height, p5.height * (perspective + (1 - perspective) * persp_y))
+            y, 0, HEIGHT,
+            p5.map(z, 0, DEPTH, 0, HEIGHT * (1 - perspective) * persp_y),
+            p5.map(z, 0, DEPTH, HEIGHT, HEIGHT * (perspective + (1 - perspective) * persp_y))
           ),
-          p5.map(z, 0, depth, rad, rad * perspective)
+          p5.map(z, 0, DEPTH, rad * M, rad * M * perspective)
         )
       })
 
@@ -209,7 +222,7 @@ export default CustomStyle
 
 const styleMetadata = {
   name: 'Lydian Plucks',
-  description: 'Observe and listen to these primitive crypto-life forms bouncing inside Ethereum blocks.',
+  description: 'Observe and listen to these primitive crypto-life forms bouncing inside Ethereum blocks. As the chain is evolving, they compose rhythms and melodies from another space.',
   image: '',
   creator_name: 'Nèr Arfer',
   options: {
@@ -217,6 +230,7 @@ const styleMetadata = {
     fov: 0.5,
     persp_x: 0.5,
     persp_y: 0.5,
+    ratio: 0.5,
     color_env: '#ffffff',
     color_plucks: '#ffffff',
     background: '#000000'
@@ -255,20 +269,20 @@ class Pluck {
     this.boxHeight = height
     this.boxDepth = depth
 
-    this.speed = speed
+    this.speed = speed * M
     this.note = note
     this.pos = pos
     this.vel = {
-      x: speed * Math.cos(angle[0]),
-      y: speed * Math.sin(angle[0]),
-      z: speed * Math.cos(angle[1])
+      x: speed * M * Math.cos(angle[0]),
+      y: speed * M * Math.sin(angle[0]),
+      z: speed * M * Math.cos(angle[1])
     }
   }
 
   getPositionAt (t) {
     // triangle function (bounce) : f(x) = |(pos + vel * x + size * sign(speed)) % (2 * size) - size * sign(speed) |
     const calculatePosWithBounces = (pos, vel, boxSize) =>
-      rad / 2 + Math.abs((pos + vel * t + Math.sign(vel) * (boxSize - rad)) % (2 * (boxSize - rad)) - Math.sign(vel) * (boxSize - rad))
+      rad * M / 2 + Math.abs((pos + vel * t + Math.sign(vel) * (boxSize - rad * M)) % (2 * (boxSize - rad * M)) - Math.sign(vel) * (boxSize - rad * M))
 
     return {
       x: calculatePosWithBounces(this.pos.x, this.vel.x,this.boxWidth),
@@ -279,7 +293,7 @@ class Pluck {
 
   getVelocityAt (t) {
     const calculateVelWithBounces = (pos, vel, boxSize) =>
-      Math.sign((pos + vel * t + Math.sign(vel) * (boxSize - rad)) % (2 * (boxSize - rad)) - Math.sign(vel) * (boxSize - rad)) * vel
+      Math.sign((pos + vel * t + Math.sign(vel) * (boxSize - rad * M)) % (2 * (boxSize - rad * M)) - Math.sign(vel) * (boxSize - rad * M)) * vel
 
     return {
       x: calculateVelWithBounces(this.pos.x, this.vel.x,this.boxWidth),
