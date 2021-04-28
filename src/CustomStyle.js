@@ -33,13 +33,13 @@ const CustomStyle = ({
   canvasRef, attributesRef, handleResize,
   block, width, height,
   
-  trail_length = 0.5,
-  fov = 0.5,
-  persp_x = 0.5,
-  persp_y = 0.5,
-  ratio = 0.5,
-  color_env = '#ffffff',
-  color_plucks = '#ffffff',
+  mod1 = 0.5,
+  mod2 = 0.5,
+  mod3 = 0.5,
+  mod4 = 0.5,
+  mod5 = 0.5,
+  color1 = '#ffffff',
+  color2 = '#ffffff',
   background = '#000000'
 }) => {
   const shuffleBag = useRef()
@@ -77,11 +77,11 @@ const CustomStyle = ({
   ])
 
   DEPTH = Math.min(width, height)
-  WIDTH = Math.min(width, height) * 0.9 * (ratio > 0.5 ? 1 - (ratio - 0.5) : 1)
-  HEIGHT = Math.min(width, height) * 0.9 * (ratio < 0.5 ? 0.5 + ratio : 1)
+  WIDTH = Math.min(width, height) * 0.9 * (mod5 > 0.5 ? 1 - (mod5 - 0.5) : 1)
+  HEIGHT = Math.min(width, height) * 0.9 * (mod5 < 0.5 ? 0.5 + mod5 : 1)
   CENTER = { x: (width - WIDTH) / 2, y: (height - HEIGHT) / 2 }
   M = Math.min(width, height) / 450
-  perspective = 1 / (0.005 * fov * fov * DEPTH + 1)
+  perspective = 1 / (0.005 * mod2 * mod2 * DEPTH + 1)
 
   if (synth) synth.set({
     oscillator: { type: waveform.toLowerCase() },
@@ -157,15 +157,15 @@ const CustomStyle = ({
     // draw environment
     p5.background(background)
     p5.fill(background)
-    p5.stroke(color_env)
+    p5.stroke(color1)
     p5.strokeWeight(M)
 
-    p5.line(-M, -M, WIDTH * persp_x - M, HEIGHT * persp_y - M) // top left
-    p5.line(WIDTH, -M, WIDTH * persp_x, HEIGHT * persp_y - M) // top right
-    p5.line(-M, HEIGHT, WIDTH * persp_x - M, HEIGHT * persp_y) // bottom left
-    p5.line(WIDTH, HEIGHT, WIDTH * persp_x, HEIGHT * persp_y) // bottom right
+    p5.line(-M, -M, WIDTH * mod3 - M, HEIGHT * mod4 - M) // top left
+    p5.line(WIDTH, -M, WIDTH * mod3, HEIGHT * mod4 - M) // top right
+    p5.line(-M, HEIGHT, WIDTH * mod3 - M, HEIGHT * mod4) // bottom left
+    p5.line(WIDTH, HEIGHT, WIDTH * mod3, HEIGHT * mod4) // bottom right
 
-    p5.rect(WIDTH * (1 - perspective) * persp_x - M, HEIGHT * (1 - perspective) * persp_y - M, WIDTH * perspective + M, HEIGHT * perspective + M)
+    p5.rect(WIDTH * (1 - perspective) * mod3 - M, HEIGHT * (1 - perspective) * mod4 - M, WIDTH * perspective + M, HEIGHT * perspective + M)
 
     p5.noFill()
 
@@ -183,9 +183,9 @@ const CustomStyle = ({
 
       const pluckAndTrail = []
       for (let i = 0; i < Math.round(maxEllipses / plucks.length); i++) {
-        if (time - i * trail_length * 15 * M / pluck.speed >= 0) {
+        if (time - i * mod1 * 15 * M / pluck.speed >= 0) {
           pluckAndTrail.push({...pluck.getPositionAt(
-            Math.max(0, time - i * trail_length * 15 * M / pluck.speed)
+            Math.max(0, time - i * mod1 * 15 * M / pluck.speed)
           )})
         }
       }
@@ -195,18 +195,18 @@ const CustomStyle = ({
       .sort((a, b) => b.z - a.z)
       .forEach(({ x, y, z }) => {
         p5.fill(background)
-        p5.stroke(color_plucks)
+        p5.stroke(color2)
 
         p5.ellipse(
           p5.map(
             x, 0, WIDTH,
-            p5.map(z, 0, DEPTH, 0, WIDTH * (1 - perspective) * persp_x),
-            p5.map(z, 0, DEPTH, WIDTH, WIDTH * (perspective + (1 - perspective) * persp_x))
+            p5.map(z, 0, DEPTH, 0, WIDTH * (1 - perspective) * mod3),
+            p5.map(z, 0, DEPTH, WIDTH, WIDTH * (perspective + (1 - perspective) * mod3))
           ),
           p5.map(
             y, 0, HEIGHT,
-            p5.map(z, 0, DEPTH, 0, HEIGHT * (1 - perspective) * persp_y),
-            p5.map(z, 0, DEPTH, HEIGHT, HEIGHT * (perspective + (1 - perspective) * persp_y))
+            p5.map(z, 0, DEPTH, 0, HEIGHT * (1 - perspective) * mod4),
+            p5.map(z, 0, DEPTH, HEIGHT, HEIGHT * (perspective + (1 - perspective) * mod4))
           ),
           p5.map(z, 0, DEPTH, rad * M, rad * M * perspective)
         )
@@ -226,14 +226,14 @@ const styleMetadata = {
   image: '',
   creator_name: 'Nèr Arfer',
   options: {
-    trail_length: 0.5,
-    fov: 0.5,
-    persp_x: 0.5,
-    persp_y: 0.5,
-    ratio: 0.5,
-    color_env: '#ffffff',
-    color_plucks: '#ffffff',
-    background: '#000000'
+    mod1: 0.5, // trail_length
+    mod2: 0.5, // fov
+    mod3: 0.5, // persp_x
+    mod4: 0.5, // persp_y
+    mod5: 0.5, // ratio
+    color1: '#ffffff', // color_env
+    color2: '#ffffff', // color_plucks
+    background: '#000000' // background
   }
 }
 
